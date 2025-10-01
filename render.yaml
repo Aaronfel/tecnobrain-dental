@@ -1,0 +1,21 @@
+services:
+  - type: web
+    name: tecnobrain-integration
+    env: docker
+    dockerfilePath: ./Dockerfile.render
+    dockerContext: .
+    plan: free
+    numInstances: 1
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        fromDatabase:
+          name: tecnobrain-db
+          property: connectionString
+
+databases:
+  - name: tecnobrain-db
+    databaseName: tecnobrain_db
+    plan: free
