@@ -1,6 +1,9 @@
 # Development stage
 FROM node:18-alpine AS development
 
+# Install OpenSSL for Prisma
+RUN apk add --no-cache openssl
+
 WORKDIR /usr/src/app
 
 # Copy package files
@@ -24,6 +27,9 @@ CMD ["npm", "run", "start:dev"]
 # Production build stage
 FROM node:18-alpine AS build
 
+# Install OpenSSL for Prisma
+RUN apk add --no-cache openssl
+
 WORKDIR /usr/src/app
 
 # Copy package files
@@ -43,6 +49,9 @@ RUN npm run build
 
 # Production stage
 FROM node:18-alpine AS production
+
+# Install OpenSSL for Prisma and curl for health check
+RUN apk add --no-cache openssl curl
 
 WORKDIR /usr/src/app
 
