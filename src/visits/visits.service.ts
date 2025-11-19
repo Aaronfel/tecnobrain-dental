@@ -5,7 +5,8 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { Visit, VisitStatus, VisitType, UserType } from '@prisma/client';
+import { MailService } from '../mail/mail.service';
+import { VisitStatus, VisitType, UserType } from '@prisma/client';
 import { CreateVisitDto } from './dto/create-visit.dto';
 import { UpdateVisitDto } from './dto/update-visit.dto';
 import { VisitResponseDto } from './dto/visit-response.dto';
@@ -15,7 +16,10 @@ import { VisitResponseDto } from './dto/visit-response.dto';
  */
 @Injectable()
 export class VisitsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly mailService: MailService,
+  ) {}
 
   /**
    * Creates a new visit
@@ -72,6 +76,9 @@ export class VisitsService {
         },
       },
     });
+
+    // Send email notifications
+    await this.sendVisitScheduledEmails(visit);
 
     return this.mapToVisitResponse(visit);
   }
@@ -271,9 +278,16 @@ export class VisitsService {
 
     // If updating time, check for conflicts
     if (updateVisitDto.startTime || updateVisitDto.endTime) {
-      const startTime = updateVisitDto.startTime || existingVisit.startTime.toISOString();
-      const endTime = updateVisitDto.endTime || existingVisit.endTime.toISOString();
-      await this.checkTimeConflict(existingVisit.clinicId, startTime, endTime, id);
+      const startTime =
+        updateVisitDto.startTime || existingVisit.startTime.toISOString();
+      const endTime =
+        updateVisitDto.endTime || existingVisit.endTime.toISOString();
+      await this.checkTimeConflict(
+        existingVisit.clinicId,
+        startTime,
+        endTime,
+        id,
+      );
     }
 
     // Prepare update data
@@ -306,6 +320,9 @@ export class VisitsService {
         },
       },
     });
+
+    // Send email notifications
+    await this.sendVisitUpdatedEmails(visit);
 
     return this.mapToVisitResponse(visit);
   }
@@ -345,9 +362,25 @@ export class VisitsService {
    * Deletes a visit
    */
   async deleteVisit(id: number): Promise<VisitResponseDto> {
-    // Check if visit exists
+    // Check if visit exists and get full data for email
     const existingVisit = await this.prisma.visit.findUnique({
       where: { id },
+      include: {
+        patient: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
+        clinic: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
+      },
     });
     if (!existingVisit) {
       throw new NotFoundException(`Visit with ID ${id} not found`);
@@ -373,6 +406,9 @@ export class VisitsService {
         },
       },
     });
+
+    // Send email notifications
+    await this.sendVisitCanceledEmails(visit);
 
     return this.mapToVisitResponse(visit);
   }
@@ -415,9 +451,210 @@ export class VisitsService {
     });
 
     if (conflictingVisit) {
-      throw new ConflictException(
-        'Time slot conflicts with an existing visit',
+      throw new ConflictException('Time slot conflicts with an existing visit');
+    }
+  }
+
+  /**
+   * Formats date and time in Spanish
+   */
+  private formatDateTimeInSpanish(startTime: Date, endTime: Date): string {
+    const days = [
+      'Domingo',
+      'Lunes',
+      'Martes',
+      'Miércoles',
+      'Jueves',
+      'Viernes',
+      'Sábado',
+    ];
+    const months = [
+      'Enero',
+      'Febrero',
+      'Marzo',
+      'Abril',
+      'Mayo',
+      'Junio',
+      'Julio',
+      'Agosto',
+      'Septiembre',
+      'Octubre',
+      'Noviembre',
+      'Diciembre',
+    ];
+    const start = new Date(startTime);
+    const end = new Date(endTime);
+    const dayName = days[start.getDay()];
+    const day = start.getDate();
+    const month = months[start.getMonth()];
+    const year = start.getFullYear();
+    const startHour = start.getHours();
+    const startMinute = start.getMinutes();
+    const endHour = end.getHours();
+    const endMinute = end.getMinutes();
+    const startAmPm = startHour >= 12 ? 'PM' : 'AM';
+    const endAmPm = endHour >= 12 ? 'PM' : 'AM';
+    const startHour12 = startHour % 12 || 12;
+    const endHour12 = endHour % 12 || 12;
+    const startMinuteStr = startMinute.toString().padStart(2, '0');
+    const endMinuteStr = endMinute.toString().padStart(2, '0');
+    return `${dayName}, ${day} de ${month} de ${year}, ${startHour12}:${startMinuteStr} ${startAmPm} - ${endHour12}:${endMinuteStr} ${endAmPm}`;
+  }
+
+  /**
+   * Formats visit type for display
+   */
+  private formatVisitType(type: VisitType): string {
+    return type.charAt(0) + type.slice(1).toLowerCase();
+  }
+
+  private async sendVisitScheduledEmails(visit: any): Promise<void> {
+    try {
+      const formattedDateTime = this.formatDateTimeInSpanish(
+        visit.startTime,
+        visit.endTime,
       );
+      const formattedVisitType = this.formatVisitType(visit.type);
+      const patientEmailContext = {
+        patientName: visit.patient.name,
+        clinicName: visit.clinic.name,
+        patientEmail: visit.patient.email,
+        clinicEmail: visit.clinic.email,
+        visitTitle: visit.title,
+        visitType: formattedVisitType,
+        formattedDateTime,
+        notes: visit.notes || null,
+        visitId: visit.id,
+      };
+      const clinicEmailContext = {
+        patientName: visit.patient.name,
+        clinicName: visit.clinic.name,
+        patientEmail: visit.patient.email,
+        clinicEmail: visit.clinic.email,
+        visitTitle: visit.title,
+        visitType: formattedVisitType,
+        formattedDateTime,
+        notes: visit.notes || null,
+        visitId: visit.id,
+      };
+      await Promise.all([
+        this.mailService.sendMail(
+          visit.patient.email,
+          'visit-scheduled-patient',
+          patientEmailContext,
+          'Cita Programada - DentalCare Pro',
+        ),
+        this.mailService.sendMail(
+          visit.clinic.email,
+          'visit-scheduled-clinic',
+          clinicEmailContext,
+          `Nueva Cita Programada - ${visit.patient.name}`,
+        ),
+      ]);
+    } catch (error) {
+      console.error('Error sending visit scheduled emails:', error);
+    }
+  }
+
+  /**
+   * Sends email notifications to patient and clinic when a visit is canceled
+   */
+  private async sendVisitCanceledEmails(visit: any): Promise<void> {
+    try {
+      const formattedDateTime = this.formatDateTimeInSpanish(
+        visit.startTime,
+        visit.endTime,
+      );
+      const formattedVisitType = this.formatVisitType(visit.type);
+      const patientEmailContext = {
+        patientName: visit.patient.name,
+        clinicName: visit.clinic.name,
+        patientEmail: visit.patient.email,
+        clinicEmail: visit.clinic.email,
+        visitTitle: visit.title,
+        visitType: formattedVisitType,
+        formattedDateTime,
+        notes: visit.notes || null,
+        visitId: visit.id,
+      };
+      const clinicEmailContext = {
+        patientName: visit.patient.name,
+        clinicName: visit.clinic.name,
+        patientEmail: visit.patient.email,
+        clinicEmail: visit.clinic.email,
+        visitTitle: visit.title,
+        visitType: formattedVisitType,
+        formattedDateTime,
+        notes: visit.notes || null,
+        visitId: visit.id,
+      };
+      await Promise.all([
+        this.mailService.sendMail(
+          visit.patient.email,
+          'visit-canceled-patient',
+          patientEmailContext,
+          'Cita Cancelada - DentalCare Pro',
+        ),
+        this.mailService.sendMail(
+          visit.clinic.email,
+          'visit-canceled-clinic',
+          clinicEmailContext,
+          `Cita Cancelada - ${visit.patient.name}`,
+        ),
+      ]);
+    } catch (error) {
+      console.error('Error sending visit canceled emails:', error);
+    }
+  }
+
+  /**
+   * Sends email notifications to patient and clinic when a visit is updated
+   */
+  private async sendVisitUpdatedEmails(visit: any): Promise<void> {
+    try {
+      const formattedDateTime = this.formatDateTimeInSpanish(
+        visit.startTime,
+        visit.endTime,
+      );
+      const formattedVisitType = this.formatVisitType(visit.type);
+      const patientEmailContext = {
+        patientName: visit.patient.name,
+        clinicName: visit.clinic.name,
+        patientEmail: visit.patient.email,
+        clinicEmail: visit.clinic.email,
+        visitTitle: visit.title,
+        visitType: formattedVisitType,
+        formattedDateTime,
+        notes: visit.notes || null,
+        visitId: visit.id,
+      };
+      const clinicEmailContext = {
+        patientName: visit.patient.name,
+        clinicName: visit.clinic.name,
+        patientEmail: visit.patient.email,
+        clinicEmail: visit.clinic.email,
+        visitTitle: visit.title,
+        visitType: formattedVisitType,
+        formattedDateTime,
+        notes: visit.notes || null,
+        visitId: visit.id,
+      };
+      await Promise.all([
+        this.mailService.sendMail(
+          visit.patient.email,
+          'visit-updated-patient',
+          patientEmailContext,
+          'Cita Actualizada - DentalCare Pro',
+        ),
+        this.mailService.sendMail(
+          visit.clinic.email,
+          'visit-updated-clinic',
+          clinicEmailContext,
+          `Cita Actualizada - ${visit.patient.name}`,
+        ),
+      ]);
+    } catch (error) {
+      console.error('Error sending visit updated emails:', error);
     }
   }
 

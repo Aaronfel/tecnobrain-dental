@@ -1,0 +1,146 @@
+<html lang='es'>
+  <head>
+    <meta charset='UTF-8' />
+    <meta name='viewport' content='width=device-width, initial-scale=1.0' />
+    <title>Cita Programada - DentalCare Pro</title>
+  </head>
+  <body
+    style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: #EFF6FF;"
+  >
+    <table
+      role='presentation'
+      style='width: 100%; border-collapse: collapse; background-color: #EFF6FF; padding: 40px 20px;'
+    >
+      <tr>
+        <td align='center'>
+          <table
+            role='presentation'
+            style='max-width: 600px; width: 100%; background-color: #FFFFFF; border-radius: 12px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); overflow: hidden;'
+          >
+            <!-- Header -->
+            <tr>
+              <td
+                style='background: linear-gradient(135deg, #3B82F6 0%, #2563EB 100%); padding: 40px 30px; text-align: center;'
+              >
+                <h1
+                  style='margin: 0; color: #FFFFFF; font-size: 28px; font-weight: 700;'
+                >Cita Programada</h1>
+                <p
+                  style='margin: 10px 0 0 0; color: #EFF6FF; font-size: 16px;'
+                >DentalCare Pro</p>
+              </td>
+            </tr>
+
+            <!-- Content -->
+            <tr>
+              <td style='padding: 40px 30px;'>
+                <p
+                  style='margin: 0 0 20px 0; color: #1F2937; font-size: 16px; line-height: 1.6;'
+                >
+                  Hola
+                  <strong>{{patientName}}</strong>,
+                </p>
+                <p
+                  style='margin: 0 0 30px 0; color: #1F2937; font-size: 16px; line-height: 1.6;'
+                >
+                  Tu cita ha sido programada exitosamente. A continuación
+                  encontrarás los detalles:
+                </p>
+
+                <!-- Visit Details Card -->
+                <table
+                  role='presentation'
+                  style='width: 100%; border-collapse: collapse; background-color: #F9FAFB; border-radius: 8px; margin-bottom: 30px; border: 1px solid #E5E7EB;'
+                >
+                  <tr>
+                    <td style='padding: 25px;'>
+                      <table
+                        role='presentation'
+                        style='width: 100%; border-collapse: collapse;'
+                      >
+                        <tr>
+                          <td style='padding-bottom: 15px;'>
+                            <p
+                              style='margin: 0; color: #6B7280; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600;'
+                            >Título de la Cita</p>
+                            <p
+                              style='margin: 5px 0 0 0; color: #1F2937; font-size: 18px; font-weight: 600;'
+                            >{{visitTitle}}</p>
+                          </td>
+                        </tr>
+                        <tr>
+                          <td
+                            style='padding: 15px 0; border-top: 1px solid #E5E7EB; border-bottom: 1px solid #E5E7EB;'
+                          >
+                            <p
+                              style='margin: 0; color: #6B7280; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600;'
+                            >Fecha y Hora</p>
+                            <p
+                              style='margin: 5px 0 0 0; color: #1F2937; font-size: 16px; font-weight: 500;'
+                            >{{formattedDateTime}}</p>
+                          </td>
+                        </tr>
+                        <tr>
+                          <td style='padding-top: 15px;'>
+                            <p
+                              style='margin: 0; color: #6B7280; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600;'
+                            >Tipo de Cita</p>
+                            <p
+                              style='margin: 5px 0 0 0; color: #1F2937; font-size: 16px; font-weight: 500;'
+                            >{{visitType}}</p>
+                          </td>
+                        </tr>
+                        {{#if notes}}
+                          <tr>
+                            <td
+                              style='padding-top: 15px; border-top: 1px solid #E5E7EB;'
+                            >
+                              <p
+                                style='margin: 0; color: #6B7280; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600;'
+                              >Notas</p>
+                              <p
+                                style='margin: 5px 0 0 0; color: #1F2937; font-size: 14px; line-height: 1.6;'
+                              >{{notes}}</p>
+                            </td>
+                          </tr>
+                        {{/if}}
+                      </table>
+                    </td>
+                  </tr>
+                </table>
+
+                <!-- Clinic Info -->
+                <div
+                  style='background-color: #EFF6FF; border-left: 4px solid #3B82F6; padding: 20px; border-radius: 6px; margin-bottom: 30px;'
+                >
+                  <p
+                    style='margin: 0 0 10px 0; color: #1F2937; font-size: 14px; font-weight: 600;'
+                  >Clínica:</p>
+                  <p
+                    style='margin: 0; color: #1F2937; font-size: 16px;'
+                  >{{clinicName}}</p>
+                </div>
+
+                <p
+                  style='margin: 0 0 30px 0; color: #6B7280; font-size: 14px; line-height: 1.6;'
+                >
+                  Por favor, asegúrate de llegar a tiempo para tu cita. Si
+                  necesitas cancelar o reprogramar, contáctanos con
+                  anticipación.
+                </p>
+
+                <!-- Footer -->
+                <p
+                  style='margin: 30px 0 0 0; color: #9CA3AF; font-size: 12px; line-height: 1.6; text-align: center;'
+                >
+                  Este es un correo automático de DentalCare Pro. Por favor, no
+                  respondas a este mensaje.
+                </p>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>
