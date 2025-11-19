@@ -24,11 +24,11 @@ async function main() {
 
   // Create Clinic User
   const clinicUser = await prisma.user.upsert({
-    where: { email: 'clinic@tecnobrain-dental.com' },
+    where: { email: 'mfmujic@gmail.com' },
     update: {},
     create: {
       email: 'clinic@tecnobrain-dental.com',
-      name: 'Dental Clinic',
+      name: 'Marcelo Mujica',
       passwordHash: passwordHash,
       userType: 'CLINIC',
     },
@@ -37,17 +37,17 @@ async function main() {
 
   // Create Sample Patients
   const patient1 = await prisma.user.upsert({
-    where: { email: 'patient1@example.com' },
+    where: { email: 'alexanderaltuna2689@gmail.com' },
     update: {},
     create: {
       email: 'patient1@example.com',
-      name: 'Sarah Johnson',
+      name: 'Anthony Altuna',
       passwordHash: passwordHash,
       userType: 'PATIENT',
       clinicId: clinicUser.id,
     },
   });
-  console.log('✅ Created Patient: Sarah Johnson');
+  console.log('✅ Created Patient: Anthony Altuna');
 
   const patient2 = await prisma.user.upsert({
     where: { email: 'patient2@example.com' },
