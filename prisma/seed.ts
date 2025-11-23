@@ -27,7 +27,7 @@ async function main() {
     where: { email: 'mfmujic@gmail.com' },
     update: {},
     create: {
-      email: 'clinic@tecnobrain-dental.com',
+      email: 'mfmujic@gmail.com',
       name: 'Marcelo Mujica',
       passwordHash: passwordHash,
       userType: 'CLINIC',
