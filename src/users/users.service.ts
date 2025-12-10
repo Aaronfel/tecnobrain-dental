@@ -118,7 +118,6 @@ export class UsersService {
       throw new NotFoundException(`User with ID ${id} not found`);
     }
 
-    // Check email uniqueness if email is being updated
     if (email && email !== existingUser.email) {
       const userWithEmail = await this.findUserByEmail(email);
       if (userWithEmail) {
@@ -126,7 +125,6 @@ export class UsersService {
       }
     }
 
-    // If updating to patient, validate clinic exists
     if (userData.userType === UserType.PATIENT && clinicId) {
       const clinic = await this.prisma.user.findUnique({
         where: { id: clinicId },
@@ -136,7 +134,6 @@ export class UsersService {
       }
     }
 
-    // Prepare update data
     const updateData: any = { ...userData };
     if (email) updateData.email = email;
     if (password) {
@@ -144,8 +141,6 @@ export class UsersService {
     }
     if (userData.userType === UserType.PATIENT) {
       updateData.clinicId = clinicId;
-    } else {
-      updateData.clinicId = null;
     }
 
     // Update user

@@ -46,9 +46,9 @@ model User {
     updatedAt    DateTime @updatedAt
 
     // One-to-many relationship: Clinic -> Patients
-    patients     User[]   @relation("ClinicPatients")
-    clinicId     Int?
-    clinic       User?    @relation("ClinicPatients", fields: [clinicId], references: [id])
+    patients User[] @relation("ClinicPatients")
+    clinicId Int?
+    clinic   User?  @relation("ClinicPatients", fields: [clinicId], references: [id])
 
     // Visits relationship
     visitsAsPatient Visit[] @relation("PatientVisits")
@@ -56,18 +56,18 @@ model User {
 }
 
 model Visit {
-    id          Int         @id @default(autoincrement())
-    title       String
-    startTime   DateTime
-    endTime     DateTime
-    type        VisitType
-    status      VisitStatus @default(PROGRAMADA)
-    notes       String?
-    patientId   Int
-    clinicId    Int
-    createdAt   DateTime    @default(now())
-    updatedAt   DateTime    @updatedAt
+    id        Int         @id @default(autoincrement())
+    title     String
+    startTime DateTime
+    endTime   DateTime
+    type      VisitType
+    status    VisitStatus @default(PROGRAMADA)
+    notes     String?
+    patientId Int
+    clinicId  Int
+    createdAt DateTime    @default(now())
+    updatedAt DateTime    @updatedAt
 
-    patient User @relation("PatientVisits", fields: [patientId], references: [id])
-    clinic  User @relation("ClinicVisits", fields: [clinicId], references: [id])
+    patient User @relation("PatientVisits", fields: [patientId], references: [id], onDelete: Cascade)
+    clinic  User @relation("ClinicVisits", fields: [clinicId], references: [id], onDelete: Cascade)
 }
