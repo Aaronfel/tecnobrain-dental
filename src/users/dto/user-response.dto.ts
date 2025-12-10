@@ -9,6 +9,7 @@ export class UserResponseDto {
   email: string;
   userType: UserType;
   clinicId?: number;
+  mustChangePassword: boolean;
   createdAt: Date;
   updatedAt: Date;
 }

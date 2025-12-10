@@ -37,13 +37,14 @@ enum VisitType {
 }
 
 model User {
-    id           Int      @id @default(autoincrement())
-    name         String
-    email        String   @unique
-    passwordHash String
-    userType     UserType
-    createdAt    DateTime @default(now())
-    updatedAt    DateTime @updatedAt
+    id                 Int      @id @default(autoincrement())
+    name               String
+    email              String   @unique
+    passwordHash       String
+    userType           UserType
+    mustChangePassword Boolean  @default(false)
+    createdAt          DateTime @default(now())
+    updatedAt          DateTime @updatedAt
 
     // One-to-many relationship: Clinic -> Patients
     patients User[] @relation("ClinicPatients")

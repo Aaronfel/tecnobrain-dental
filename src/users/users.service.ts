@@ -7,11 +7,13 @@ import {
 import { PrismaService } from '../prisma/prisma.service';
 import { User, UserType } from '@prisma/client';
 import { AuthService } from './auth.service';
+import { MailService } from '../mail/mail.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { LoginUserDto } from './dto/login-user.dto';
 import { UserResponseDto } from './dto/user-response.dto';
 import { LoginResponseDto } from './dto/login-response.dto';
+import { ChangePasswordDto } from './dto/change-password.dto';
 
 /**
  * Service for handling user operations
@@ -21,6 +23,7 @@ export class UsersService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly authService: AuthService,
+    private readonly mailService: MailService,
   ) {}
 
   /**
@@ -45,8 +48,16 @@ export class UsersService {
       }
     }
 
+    let finalPassword = password;
+    let mustChangePassword = false;
+
+    if (userData.userType === UserType.PATIENT) {
+      finalPassword = '123456';
+      mustChangePassword = true;
+    }
+
     // Hash password
-    const passwordHash = await this.authService.hashPassword(password);
+    const passwordHash = await this.authService.hashPassword(finalPassword);
 
     // Create user
     const user = await this.prisma.user.create({
@@ -54,9 +65,15 @@ export class UsersService {
         ...userData,
         email,
         passwordHash,
+        mustChangePassword,
         clinicId: userData.userType === UserType.PATIENT ? clinicId : null,
       },
     });
+
+    // Send welcome email to patients with credentials
+    if (userData.userType === UserType.PATIENT) {
+      await this.sendPatientWelcomeEmail(user, finalPassword);
+    }
 
     return this.mapToUserResponse(user);
   }
@@ -278,8 +295,66 @@ export class UsersService {
       email: user.email,
       userType: user.userType,
       clinicId: user.clinicId,
+      mustChangePassword: user.mustChangePassword,
       createdAt: user.createdAt,
       updatedAt: user.updatedAt,
     };
+  }
+
+  /**
+   * Sends welcome email to patient with credentials
+   */
+  private async sendPatientWelcomeEmail(
+    user: User,
+    password: string,
+  ): Promise<void> {
+    try {
+      await this.mailService.sendMail(
+        user.email,
+        'patient-welcome',
+        {
+          patientName: user.name,
+          email: user.email,
+          password: password,
+        },
+        'Bienvenido a DentalCare Pro - Tus Credenciales de Acceso',
+      );
+    } catch (error) {
+      // Log error but don't fail user creation
+      console.error('Failed to send welcome email to patient:', error);
+    }
+  }
+
+  /**
+   * Changes user's password
+   */
+  async changePassword(
+    userId: number,
+    changePasswordDto: ChangePasswordDto,
+  ): Promise<UserResponseDto> {
+    const { currentPassword, newPassword } = changePasswordDto;
+
+    // Find user
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) {
+      throw new NotFoundException(`User with ID ${userId} not found`);
+    }
+
+    // Verify current password
+    await this.authService.validatePassword(currentPassword, user.passwordHash);
+
+    // Hash new password
+    const newPasswordHash = await this.authService.hashPassword(newPassword);
+
+    // Update password and clear mustChangePassword flag
+    const updatedUser = await this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        passwordHash: newPasswordHash,
+        mustChangePassword: false,
+      },
+    });
+
+    return this.mapToUserResponse(updatedUser);
   }
 }

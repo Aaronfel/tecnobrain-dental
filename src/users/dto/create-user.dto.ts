@@ -6,6 +6,7 @@ import {
   MinLength,
   IsOptional,
   IsInt,
+  ValidateIf,
 } from 'class-validator';
 import { UserType } from '@prisma/client';
 
@@ -20,14 +21,16 @@ export class CreateUserDto {
   @IsEmail()
   email: string;
 
+  @ValidateIf((o) => o.userType !== UserType.PATIENT)
   @IsString()
   @MinLength(6)
-  password: string;
+  @IsNotEmpty()
+  password?: string;
 
   @IsEnum(UserType)
   userType: UserType;
 
   @IsOptional()
   @IsInt()
-  clinicId?: number; // For patients, specify which clinic they belong to
+  clinicId?: number;
 }

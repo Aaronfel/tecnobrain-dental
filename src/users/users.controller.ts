@@ -16,6 +16,7 @@ import { UsersService } from './users.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { LoginUserDto } from './dto/login-user.dto';
+import { ChangePasswordDto } from './dto/change-password.dto';
 import { UserResponseDto } from './dto/user-response.dto';
 import { LoginResponseDto } from './dto/login-response.dto';
 import { Public } from './decorators/public.decorator';
@@ -65,6 +66,16 @@ export class UsersController {
   }
 
   /**
+   * Gets current user profile (Protected route)
+   */
+  @Get('me')
+  async getCurrentUser(
+    @CurrentUser() user: UserResponseDto,
+  ): Promise<UserResponseDto> {
+    return user;
+  }
+
+  /**
    * Gets a user by ID
    */
   @Get(':id')
@@ -72,6 +83,17 @@ export class UsersController {
     @Param('id', ParseIntPipe) id: number,
   ): Promise<UserResponseDto> {
     return this.usersService.findUserById(id);
+  }
+
+  /**
+   * Changes user's password (Protected route)
+   */
+  @Put('change-password')
+  async changePassword(
+    @CurrentUser() user: UserResponseDto,
+    @Body() changePasswordDto: ChangePasswordDto,
+  ): Promise<UserResponseDto> {
+    return this.usersService.changePassword(user.id, changePasswordDto);
   }
 
   /**
@@ -93,16 +115,6 @@ export class UsersController {
     @Param('id', ParseIntPipe) id: number,
   ): Promise<UserResponseDto> {
     return this.usersService.deleteUser(id);
-  }
-
-  /**
-   * Gets current user profile (Protected route)
-   */
-  @Get('me')
-  async getCurrentUser(
-    @CurrentUser() user: UserResponseDto,
-  ): Promise<UserResponseDto> {
-    return user;
   }
 
   /**
