@@ -10,6 +10,7 @@ import { VisitStatus, VisitType, UserType } from '@prisma/client';
 import { CreateVisitDto } from './dto/create-visit.dto';
 import { UpdateVisitDto } from './dto/update-visit.dto';
 import { VisitResponseDto } from './dto/visit-response.dto';
+import { UserResponseDto } from '../users/dto/user-response.dto';
 
 /**
  * Service for handling visit operations
@@ -24,7 +25,10 @@ export class VisitsService {
   /**
    * Creates a new visit
    */
-  async createVisit(createVisitDto: CreateVisitDto): Promise<VisitResponseDto> {
+  async createVisit(
+    createVisitDto: CreateVisitDto,
+    currentUser?: UserResponseDto,
+  ): Promise<VisitResponseDto> {
     const { startTime, endTime, patientId, clinicId } = createVisitDto;
 
     // Validate patient exists and is a patient
@@ -46,6 +50,16 @@ export class VisitsService {
     // Check if patient belongs to this clinic
     if (patient.clinicId !== clinicId) {
       throw new BadRequestException('Patient does not belong to this clinic');
+    }
+
+    // If patient is creating their own visit, validate 24-hour buffer
+    if (currentUser && currentUser.userType === UserType.PATIENT) {
+      if (currentUser.id !== patientId) {
+        throw new BadRequestException(
+          'Patients can only create visits for themselves',
+        );
+      }
+      this.validateTimeBuffer(new Date(startTime), 'create');
     }
 
     // Check for time conflicts
@@ -267,6 +281,7 @@ export class VisitsService {
   async updateVisit(
     id: number,
     updateVisitDto: UpdateVisitDto,
+    currentUser?: UserResponseDto,
   ): Promise<VisitResponseDto> {
     // Check if visit exists
     const existingVisit = await this.prisma.visit.findUnique({
@@ -274,6 +289,23 @@ export class VisitsService {
     });
     if (!existingVisit) {
       throw new NotFoundException(`Visit with ID ${id} not found`);
+    }
+
+    // If patient is updating, enforce ownership and 24-hour buffer
+    if (currentUser && currentUser.userType === UserType.PATIENT) {
+      if (existingVisit.patientId !== currentUser.id) {
+        throw new BadRequestException(
+          'Patients can only update their own visits',
+        );
+      }
+
+      // Validate 24-hour buffer on existing visit time
+      this.validateTimeBuffer(existingVisit.startTime, 'update');
+
+      // If changing time, validate buffer on new time too
+      if (updateVisitDto.startTime) {
+        this.validateTimeBuffer(new Date(updateVisitDto.startTime), 'update');
+      }
     }
 
     // If updating time, check for conflicts
@@ -361,8 +393,10 @@ export class VisitsService {
   /**
    * Deletes a visit
    */
-  async deleteVisit(id: number): Promise<VisitResponseDto> {
-    // Check if visit exists and get full data for email
+  async deleteVisit(
+    id: number,
+    currentUser?: UserResponseDto,
+  ): Promise<VisitResponseDto> {
     const existingVisit = await this.prisma.visit.findUnique({
       where: { id },
       include: {
@@ -384,6 +418,16 @@ export class VisitsService {
     });
     if (!existingVisit) {
       throw new NotFoundException(`Visit with ID ${id} not found`);
+    }
+
+    // If patient is deleting, enforce ownership and 24-hour buffer
+    if (currentUser && currentUser.userType === UserType.PATIENT) {
+      if (existingVisit.patientId !== currentUser.id) {
+        throw new BadRequestException(
+          'Patients can only delete their own visits',
+        );
+      }
+      this.validateTimeBuffer(existingVisit.startTime, 'delete');
     }
 
     // Delete visit
@@ -451,7 +495,34 @@ export class VisitsService {
     });
 
     if (conflictingVisit) {
-      throw new ConflictException('Time slot conflicts with an existing visit');
+      throw new ConflictException(
+        'Este horario no esta disponible para citas.',
+      );
+    }
+  }
+
+  /**
+   * Validates that visit is not within 24 hours (for patient operations)
+   * @throws BadRequestException if within 24 hours
+   */
+  private validateTimeBuffer(
+    visitTime: Date,
+    operationType: 'create' | 'update' | 'delete',
+  ): void {
+    const now = new Date();
+    const hoursDifference =
+      (visitTime.getTime() - now.getTime()) / (1000 * 60 * 60);
+
+    if (hoursDifference < 24) {
+      const action =
+        operationType === 'create'
+          ? 'crear'
+          : operationType === 'update'
+            ? 'modificar'
+            : 'cancelar';
+      throw new BadRequestException(
+        `No puedes ${action} una cita con menos de 24 horas de anticipación. Por favor contacta a la clínica.`,
+      );
     }
   }
 

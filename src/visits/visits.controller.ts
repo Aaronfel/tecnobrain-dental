@@ -11,6 +11,7 @@ import {
   HttpCode,
   HttpStatus,
   UseGuards,
+  BadRequestException,
 } from '@nestjs/common';
 import { VisitStatus, UserType } from '@prisma/client';
 import { VisitsService } from './visits.service';
@@ -30,11 +31,11 @@ export class VisitsController {
   constructor(private readonly visitsService: VisitsService) {}
 
   /**
-   * Creates a new visit (Clinic or Admin only)
+   * Creates a new visit (Clinic, Admin, or Patient)
    */
   @Post()
   @UseGuards(RolesGuard)
-  @Roles(UserType.CLINIC, UserType.ADMIN)
+  @Roles(UserType.CLINIC, UserType.ADMIN, UserType.PATIENT)
   @HttpCode(HttpStatus.CREATED)
   async createVisit(
     @Body() createVisitDto: CreateVisitDto,
@@ -44,8 +45,20 @@ export class VisitsController {
     if (user.userType === UserType.CLINIC) {
       createVisitDto.clinicId = user.id;
     }
-    
-    return this.visitsService.createVisit(createVisitDto);
+
+    // If patient user, enforce patient-specific constraints
+    if (user.userType === UserType.PATIENT) {
+      if (!user.clinicId) {
+        throw new BadRequestException(
+          'El paciente debe estar asignado a una clínica',
+        );
+      }
+      createVisitDto.patientId = user.id;
+      createVisitDto.clinicId = user.clinicId;
+      createVisitDto.status = VisitStatus.PROGRAMADA;
+    }
+
+    return this.visitsService.createVisit(createVisitDto, user);
   }
 
   /**
@@ -121,7 +134,7 @@ export class VisitsController {
    */
   @Put(':id')
   @UseGuards(RolesGuard)
-  @Roles(UserType.CLINIC, UserType.ADMIN)
+  @Roles(UserType.CLINIC, UserType.ADMIN, UserType.PATIENT)
   async updateVisit(
     @Param('id', ParseIntPipe) id: number,
     @Body() updateVisitDto: UpdateVisitDto,
@@ -131,8 +144,15 @@ export class VisitsController {
     if (user.userType === UserType.CLINIC && updateVisitDto.clinicId) {
       updateVisitDto.clinicId = user.id;
     }
-    
-    return this.visitsService.updateVisit(id, updateVisitDto);
+
+    // If patient user, enforce constraints (can't change critical fields)
+    if (user.userType === UserType.PATIENT) {
+      delete updateVisitDto.patientId;
+      delete updateVisitDto.clinicId;
+      delete updateVisitDto.status; // Patients can't change status
+    }
+
+    return this.visitsService.updateVisit(id, updateVisitDto, user);
   }
 
   /**
@@ -153,10 +173,11 @@ export class VisitsController {
    */
   @Delete(':id')
   @UseGuards(RolesGuard)
-  @Roles(UserType.CLINIC, UserType.ADMIN)
+  @Roles(UserType.CLINIC, UserType.ADMIN, UserType.PATIENT)
   async deleteVisit(
     @Param('id', ParseIntPipe) id: number,
+    @CurrentUser() user: UserResponseDto,
   ): Promise<VisitResponseDto> {
-    return this.visitsService.deleteVisit(id);
+    return this.visitsService.deleteVisit(id, user);
   }
 }
